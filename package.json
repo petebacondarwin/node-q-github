@@ -14,6 +14,8 @@
   "license": "MIT",
   "dependencies": {
     "github": "~0.1.12",
-    "qequire": "~0.0.2"
+    "qequire": "~0.0.2",
+    "q": "~0.9.7",
+    "lodash": "~2.4.1"
   }
 }
