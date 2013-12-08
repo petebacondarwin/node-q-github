@@ -1,0 +1,19 @@
+{
+  "name": "q-github",
+  "version": "0.0.1",
+  "description": "Q Promise-based wrapper around node github API",
+  "main": "index.js",
+  "repository": "https://github.com/petebacondarwin/node-q-github.git",
+  "keywords": [
+    "github",
+    "api",
+    "q",
+    "promises"
+  ],
+  "author": "Pete Bacon Darwin",
+  "license": "MIT",
+  "dependencies": {
+    "github": "~0.1.12",
+    "qequire": "0.0.2"
+  }
+}
