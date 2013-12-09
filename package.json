@@ -1,6 +1,6 @@
 {
   "name": "q-github",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Q Promise-based wrapper around node github API",
   "main": "index.js",
   "repository": "https://github.com/petebacondarwin/node-q-github.git",
