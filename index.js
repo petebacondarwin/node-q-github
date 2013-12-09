@@ -2,47 +2,74 @@ var Q = require('q');
 var _ = require('lodash');
 var qequire = require('qequire');
 var GitHubApi = require('github');
+var url = require("url");
+
+var PAGE_REGEX = /([&?])page=(\d+)/;
+var PAGE_REPLACE = '$1page=';
 
 
-GitHubApi.prototype.getAllPages = function(requestFn, options) {
-  var github = this;
 
-  var PAGE_REGEX = /[&?]page=(\d+)/;
-  function getPageCount(response) {
-    var lastPageLink = github.hasLastPage(response);
-    if ( lastPageLink ) {
-      return PAGE_REGEX.exec(lastPageLink)[1];
+function createGitHubApiObj(config) {
+  var github = qequire.quire(new GitHubApi(config));
+
+  github.getOtherPageLinks = function(response) {
+    var lastPageLink = this.hasLastPage(response);
+    var pageParamMatch = lastPageLink && PAGE_REGEX.exec(lastPageLink);
+    if (!pageParamMatch) {
+      // need to do recursive
+      return;
+    }
+
+    // OK so we can get by page index
+    var pageLinks = [];
+    var count = pageParamMatch[2];
+    for(var i=2;i<=count;i++) {
+      pageLinks.push(lastPageLink.replace(PAGE_REGEX, PAGE_REPLACE + i));
+    }
+    return pageLinks;
+  };
+
+  github.getPageCount = function(link) {
+    var lastPageLink = this.hasLastPage(link);
+    var pageParamMatch = lastPageLink && PAGE_REGEX.exec(lastPageLink);
+    if (pageParamMatch) {
+      return pageParamMatch[2];
     } else { 
       return 1;
     }
-  }
+  };
 
-  return requestFn(options).then(function(firstPage) {
-    var pageIndex = 2;
-    var pageCount = getPageCount(firstPage);
-    pagePromises = [];
-
-    function makeRequest(pageIndex) {
-      return requestFn(_.defaults({ page: pageIndex }, options)).then(function(response) {
-        return response;
-      });
-    }
-
-    console.log('page count', pageCount);
-    while(pageIndex <= pageCount) {
-      pagePromises.push(makeRequest(pageIndex));
-      pageIndex += 1;
-    }
-
-    return Q.all(pagePromises).then(function(pages) {
-      var totalPages = firstPage.concat(_.flatten(pages));
-      return totalPages;
+  github.getPageFromLink = function(link) {
+    var api = github[github.version];
+    var parsedUrl = url.parse(link, true);
+    var block = {
+        url: parsedUrl.pathname,
+        method: "GET",
+        params: parsedUrl.query
+    };
+    return github.httpSend(parsedUrl.query, block).then(function(response) {
+      return response.data && JSON.parse(response.data);
+    }, function(err) {
+      return api.sendError(err, null, parsedUrl.query, callback);
     });
+  };
 
-  });
-};
+  github.getOtherPages = function(firstPage) {
+    var links = this.getOtherPageLinks(firstPage);
+    var promises = [];
+    for(var page=0;page<links.length;page++) {
+      promises.push(github.getPageFromLink(links[page]));
+    }
+    return Q.all(promises);
+  };
 
+  github.getAllPages = function(response) {
+    return github.getOtherPages(response).then(function(pages) {
+      return response.concat(_.flatten(pages));
+    });
+  };
+  return github;
+}
 
-module.exports = function(config) {
-  return qequire.quire(new GitHubApi(config));
-};
+module.exports = createGitHubApiObj;
+
